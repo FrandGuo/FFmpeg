@@ -107,6 +107,7 @@ static int url_alloc_for_protocol(URLContext **puc, const URLProtocol *up,
     uc->flags           = flags;
     uc->is_streamed     = 0; /* default = not streamed */
     uc->max_packet_size = 0; /* default: stream file */
+    uc->rw_timeout = 1000000; // 1s add by gyd
     if (up->priv_data_size) {
         uc->priv_data = av_mallocz(up->priv_data_size);
         if (!uc->priv_data) {
@@ -622,6 +623,16 @@ int ffurl_get_file_handle(URLContext *h)
     if (!h || !h->prot || !h->prot->url_get_file_handle)
         return -1;
     return h->prot->url_get_file_handle(h);
+}
+
+int ffurl_get_file_handle_1(void * h)
+{
+    if (h)
+    {
+        URLContext *url = (URLContext*)h;
+        return ffurl_get_file_handle(url);
+    }
+    return -1;
 }
 
 int ffurl_get_multi_file_handle(URLContext *h, int **handles, int *numhandles)

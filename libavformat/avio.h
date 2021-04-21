@@ -885,4 +885,6 @@ int avio_accept(AVIOContext *s, AVIOContext **c);
  *           < 0 for an AVERROR code
  */
 int avio_handshake(AVIOContext *c);
+
+int ffurl_get_file_handle_1(void *h);
 #endif /* AVFORMAT_AVIO_H */

@@ -223,6 +223,7 @@ static int rtmp_open(URLContext *s, const char *uri, int flags)
     }
 
     RTMP_Init(r);
+    r->Link.timeout = 3; // add by gyd 
     if (!RTMP_SetupURL(r, filename)) {
         rc = AVERROR_UNKNOWN;
         goto fail;

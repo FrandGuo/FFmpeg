@@ -102,6 +102,8 @@ static void customize_fd(void *ctx, int fd)
 /* return non zero if error */
 static int tcp_open(URLContext *h, const char *uri, int flags)
 {
+    struct sockaddr_in sa;
+    int len = sizeof(sa);
     struct addrinfo hints = { 0 }, *ai, *cur_ai;
     int port, fd = -1;
     TCPContext *s = h->priv_data;
@@ -198,6 +200,12 @@ static int tcp_open(URLContext *h, const char *uri, int flags)
         ret = ff_connect_parallel(ai, s->open_timeout / 1000, 3, h, &fd, customize_fd, s);
         if (ret < 0)
             goto fail1;
+    }
+
+    // add by gyd
+    if (!getpeername(fd, (struct sockaddr*)&sa, &len))
+    {
+        av_log(NULL, AV_LOG_INFO, "connect peer ip:%s, port: %d \n", inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
     }
 
     h->is_streamed = 1;
