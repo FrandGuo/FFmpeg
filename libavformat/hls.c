@@ -1576,6 +1576,7 @@ reload:
     } else {
         ff_format_io_close(v->parent, &v->input);
     }
+    av_log(NULL, AV_LOG_INFO, " play ts finished, tsurl: %s.\n", seg->url);
     v->cur_seq_no++;
 
     c->cur_seq_no = v->cur_seq_no;
@@ -1701,6 +1702,22 @@ static int64_t select_cur_seq_no(HLSContext *c, struct playlist *pls)
     }
 
     /* Otherwise just start on the first segment. */
+    return pls->start_seq_no;
+}
+
+static int64_t continue_last_program(struct playlist *pls, AVFormatContext *s)
+{
+    int i;
+    for (i = 0; i < pls->n_segments - 1; i++)
+    {
+        // 如果找到了返回下一个ts
+        if (!strcmp(pls->segments[i]->url, s->last_ts_url))
+        {
+            av_log(NULL, AV_LOG_INFO, " find last_ts_url, ret seqno: %d, pls start seqno: %d.\n", i + 1, pls->start_seq_no);
+            return (i + 1);
+        }
+    }
+    av_log(NULL, AV_LOG_INFO, " not find ret star seqno %d.\n", pls->start_seq_no);
     return pls->start_seq_no;
 }
 
@@ -1871,6 +1888,12 @@ static int hls_read_header(AVFormatContext *s)
     if ((ret = save_avio_options(s)) < 0)
         goto fail;
 
+    AVDictionaryEntry *tag = NULL;
+    while ((tag = av_dict_get(c->avio_opts, "", tag, AV_DICT_IGNORE_SUFFIX)))
+    {
+        av_log(s, AV_LOG_DEBUG, "hls option key: %s, value: %s\n", tag->key, tag->value);
+    }
+
     /* XXX: Some HLS servers don't like being sent the range header,
        in this case, need to  setting http_seekable = 0 to disable
        the range header */
@@ -1946,8 +1969,14 @@ static int hls_read_header(AVFormatContext *s)
         if (pls->n_segments == 0)
             continue;
 
-        pls->cur_seq_no = select_cur_seq_no(c, pls);
+        pls->cur_seq_no = (s->enable_continue_hls == 1) ? continue_last_program(pls, s) : select_cur_seq_no(c, pls);
         highest_cur_seq_no = FFMAX(highest_cur_seq_no, pls->cur_seq_no);
+
+        int j;
+        for (j = 0; j < pls->n_segments; j++)
+        {
+            av_log(NULL, AV_LOG_DEBUG, " seg url: %s.\n", pls->segments[j]->url);
+        }
     }
 
     /* Open the demuxer for each playlist */
@@ -2166,6 +2195,13 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
                 AVRational tb;
                 ret = av_read_frame(pls->ctx, pls->pkt);
                 if (ret < 0) {
+                    // 如果列表播完了，记录当前最后一集的ts url
+                    if (pls->cur_seq_no >= pls->start_seq_no + pls->n_segments)
+                    {
+                        strcpy(s->last_ts_url, pls->segments[pls->start_seq_no + pls->n_segments - 1]->url);
+                        av_log(NULL, AV_LOG_INFO, " last_ts_url: %s.\n", s->last_ts_url);
+                    }
+
                     if (!avio_feof(&pls->pb) && ret != AVERROR_EOF)
                         return ret;
                     break;

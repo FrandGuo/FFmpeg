@@ -523,11 +523,20 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
         av_log(NULL, AV_LOG_ERROR, "Input context has not been properly allocated by avformat_alloc_context() and is not NULL either\n");
         return AVERROR(EINVAL);
     }
+
     if (fmt)
         s->iformat = fmt;
 
     if (options)
         av_dict_copy(&tmp, *options, 0);
+
+    // add by gyd
+    AVDictionaryEntry *t = NULL;
+    if ((t = av_dict_get(tmp, "enable_continue_hls", t, AV_DICT_IGNORE_SUFFIX))) 
+    {
+        s->enable_continue_hls = 1;
+        strcpy(s->last_ts_url, t->value);
+    }
 
     if (s->pb) // must be before any goto fail
         s->flags |= AVFMT_FLAG_CUSTOM_IO;

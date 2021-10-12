@@ -1861,6 +1861,10 @@ typedef struct AVFormatContext {
      * - decoding: set by user
      */
     int max_probe_packets;
+
+    // add by gyd
+    int enable_continue_hls;
+    char last_ts_url[500];
 } AVFormatContext;
 
 #if FF_API_FORMAT_GET_SET
